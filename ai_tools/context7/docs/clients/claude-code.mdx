@@ -1,0 +1,60 @@
+---
+title: Claude Code
+description: Using Context7 with Claude Code
+---
+
+Context7 integrates with Claude Code to provide current library documentation instead of relying on training data. Set it up with `ctx7 setup`, or install the Context7 plugin.
+
+## Installation
+
+Run the setup command to configure Context7 for Claude Code:
+
+```bash
+npx ctx7 setup --claude
+```
+
+This flow authenticates via OAuth, generates an API key, and installs the appropriate skill. You can choose between CLI or MCP mode. Login uses the OAuth device flow — it shows a verification link and short code you open on any device, so it works the same locally or on a remote, headless, or SSH host.
+
+Create or manage API keys in the [Context7 dashboard](https://context7.com/dashboard). For manual MCP installation or other configuration options, see [All MCP Clients](/resources/all-clients).
+
+---
+
+## Using Context7
+
+With `ctx7 setup`, a skill is installed that triggers automatically when you ask about libraries — no need to say "use context7". You can also invoke it explicitly:
+
+```
+use context7 to show me how to set up a proxy in Next.js 16
+use context7 for Prisma query examples with relations
+use context7 for the Supabase syntax for row-level security
+```
+
+If you know the library ID, use it directly to skip resolution:
+
+```
+use context7 with /supabase/supabase for authentication docs
+use context7 with /vercel/next.js for app router setup
+```
+
+---
+
+## The Context7 Plugin
+
+The Context7 plugin connects Claude Code to the hosted Context7 MCP server (`https://mcp.context7.com/mcp`). It adds the `resolve-library-id` and `query-docs` tools, with no local Node.js, npm, or npx required.
+
+### Installing the Plugin
+
+The plugin is available from the Context7 marketplace. Run these commands in Claude Code:
+
+```
+/plugin marketplace add upstash/context7
+/plugin install context7@context7-marketplace
+```
+
+### Signing In
+
+After installing the plugin, restart Claude Code and run `/mcp`. Select Context7 and follow the browser sign-in flow. No API key is required.
+
+<Note>
+The plugin does not read `CONTEXT7_API_KEY`. To use an API key, for example on a headless, SSH, or CI host, run `npx ctx7 setup --claude` or add the MCP server manually as described in [All MCP Clients](/resources/all-clients).
+</Note>

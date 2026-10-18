@@ -1,0 +1,71 @@
+{
+  "name": "ctx7",
+  "version": "0.8.0",
+  "description": "Context7 CLI - Fetch documentation context and configure Context7",
+  "type": "module",
+  "bin": {
+    "ctx7": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --fix",
+    "lint:check": "eslint src",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "clean": "rm -rf dist node_modules",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.7.2",
+    "boxen": "^9.0.0",
+    "commander": "^15.0.0",
+    "figlet": "^1.11.4",
+    "jsonc-parser": "^3.3.1",
+    "open": "^11.0.4",
+    "ora": "^9.4.1",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/figlet": "^1.7.0",
+    "@types/node": "catalog:",
+    "@typescript-eslint/eslint-plugin": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "eslint": "catalog:",
+    "eslint-plugin-prettier": "catalog:",
+    "prettier": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "keywords": [
+    "context7",
+    "cli",
+    "ai",
+    "skills",
+    "documentation",
+    "mcp"
+  ],
+  "author": "Upstash",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/upstash/context7.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/upstash/context7/issues"
+  },
+  "homepage": "https://context7.com",
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
