@@ -22,7 +22,7 @@ def safe_path(root, name):
     if not re.fullmatch(r'[A-Za-z0-9_./-]{1,200}', name):
         raise TaskError('اسم الملف غير مسموح.')
     parts = PurePosixPath(name).parts
-    if (not parts or name.startswith('/') or '\\' in name
+    if (not parts or name != str(PurePosixPath(name)) or name.startswith('/') or '\\' in name
             or any(p.startswith('.') for p in parts)):
         raise TaskError('المسار غير مسموح.')
     suffixes = {'.html', '.js', '.ts', '.css', '.json', '.md', '.txt', '.glsl', '.wgsl'}
@@ -48,19 +48,31 @@ def parse_save(answer):
     if len(markers) != 1 or len(blocks) != 1:
         raise TaskError('المطلوب ملف واحد وكتلة كود واحدة. لم يُحفظ شيء.')
     content = blocks[0]
+    name = markers[0].strip()
+    validate_content(name, content)
+    return name, content
+
+
+def validate_content(name, content):
+    if not isinstance(content, str):
+        raise TaskError('محتوى الملف يجب أن يكون نصًا.')
     if not content.strip() or len(content.encode('utf-8')) > 200_000:
         raise TaskError('الملف فارغ أو أكبر من الحد المسموح.')
     # Catch common credential formats before publishing generated content.
     if re.search(r'gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|'
                  r'AIza[A-Za-z0-9_-]{30,}|\d{7,12}:[A-Za-z0-9_-]{30,}', content):
         raise TaskError('المحتوى يشبه مفتاح وصول. أُوقف الحفظ.')
-    name = markers[0].strip()
-    if name.endswith('.json'):
+    if name.lower().endswith('.json'):
         try:
-            json.loads(content)
+            strict_json(content)
         except ValueError:
             raise TaskError('ملف JSON غير صالح. لم يُحفظ شيء.') from None
-    return name, content
+
+
+def strict_json(content):
+    def reject_constant(value):
+        raise ValueError('Non-JSON numeric constant')
+    return json.loads(content, parse_constant=reject_constant)
 
 
 def atomic_write(path, content):
@@ -94,22 +106,57 @@ class Workspace:
         self.root = Path(root).resolve()
 
     def context(self, extra=None):
-        names = ['RESUME.md', 'game_engine/index.html']
-        if extra and extra not in names:
-            names.append(extra)
+        return self.snapshot(extra)[0]
+
+    def catalog(self):
         result = []
+        game = self.root / 'game_engine'
+        if game.is_symlink():
+            raise TaskError('مجلد اللعبة رابط رمزي غير مسموح.')
+        for path in game.rglob('*'):
+            if not path.is_file():
+                continue
+            name = path.relative_to(self.root).as_posix()
+            try:
+                safe_path(self.root, name)
+            except TaskError:
+                continue
+            result.append(name)
+            if len(result) >= 200:
+                break
+        return '\n'.join(sorted(result)) or 'لا توجد ملفات لعبة نصية بعد.'
+
+    def snapshot(self, extra=None):
+        names = ['RESUME.md', 'game_engine/index.html']
+        extras = [extra] if isinstance(extra, str) else (extra or [])
+        if len(extras) > 8:
+            raise TaskError('اقرأ حتى 8 ملفات إضافية في الطلب الواحد.')
+        for name in extras:
+            if name not in names:
+                names.append(name)
+        result = []
+        fingerprints = {}
         total = 0
         for name in names:
             path = safe_path(self.root, name)
             if path.is_file():
-                if path.stat().st_size > 80_000:
+                if path.stat().st_size > 200_000:
                     raise TaskError('ملف السياق كبير؛ قسم المهمة إلى أجزاء أصغر.')
-                content = path.read_text(encoding='utf-8')
-                total += len(content.encode('utf-8'))
-                if total > 160_000:
+                raw = path.read_bytes()
+                content = raw.decode('utf-8')
+                fingerprints[name] = hashlib.sha256(raw).hexdigest()
+                total += len(raw)
+                if total > 500_000:
                     raise TaskError('السياق أكبر من الحد المسموح.')
                 result.append(f'FILE: {name}\n{content}')
-        return '\n\n'.join(result)
+            else:
+                fingerprints[name] = None
+                result.append(f'FILE: {name}\n[NEW FILE: does not exist]')
+        return '\n\n'.join(result), fingerprints
+
+    def save_many(self, changes, task, snapshot):
+        from nova_batch import save_many
+        return save_many(self, changes, task, snapshot)
 
     def save(self, name, content, task=None):
         path = safe_path(self.root, name)
@@ -161,6 +208,9 @@ class Workspace:
         if row['status'] in ('completed', 'cancelled'):
             return task.store.summary(task.id)
         data = row['details']
+        if data.get('batch'):
+            from nova_batch import resume_batch
+            return resume_batch(self, task)
         if not data.get('files'):
             task.store.update(task.id, status='failed', error='انقطع الطلب قبل حفظ ملف؛ أعد إرسال الطلب إن لزم.')
             return task.store.summary(task.id)
