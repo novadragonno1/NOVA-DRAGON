@@ -1,1 +1,10 @@
 .env
+.env.*
+!.env.example
+.nova/
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+nohup.out
+node_modules/
