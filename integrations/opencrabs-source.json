@@ -1,0 +1,10 @@
+{
+  "version": "0.5.4",
+  "source_repository": "stevearagonno1/NOVA-DRAGON",
+  "source_commit": "8af2aae214f65a370110921928eaabf07771a6d1",
+  "url": "https://raw.githubusercontent.com/stevearagonno1/NOVA-DRAGON/8af2aae214f65a370110921928eaabf07771a6d1/opencrabs.zip",
+  "archive_sha256": "e5620b91d85c30ab5c15e977fdb44d444e48a5811f15a8e0eaa22ceaa7691e32",
+  "binary_sha256": "04a19d0bcb4be2e855a4392a507777dec10a44f9cb2797bebb8c49aa9c293c21",
+  "upstream": "https://github.com/opencrabs/opencrabs",
+  "platform": "linux-x86_64"
+}

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "packages": {
+    "ruflo": "3.57.0",
+    "mcp": "2.3.0",
+    "graphifyy": "0.9.92",
+    "strix-agent": "1.7.0"
+  },
+  "servers": {
+    "ruflo": {
+      "transport": "stdio",
+      "command": ".nova/tools/node/node_modules/.bin/ruflo",
+      "args": [
+        "mcp",
+        "start"
+      ],
+      "allowed_tools": [
+        "system_status",
+        "swarm_status",
+        "agent_list",
+        "memory_retrieve",
+        "memory_store",
+        "task_create",
+        "task_list",
+        "task_status",
+        "task_update"
+      ]
+    },
+    "context7": {
+      "transport": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "key_env": "CONTEXT7_API_KEY",
+      "header": "Authorization",
+      "prefix": "Bearer ",
+      "optional_key": true,
+      "allowed_tools": [
+        "resolve-library-id",
+        "query-docs"
+      ]
+    },
+    "21st": {
+      "transport": "http",
+      "url": "https://21st.dev/api/mcp",
+      "key_env": "API_KEY_21ST",
+      "header": "x-api-key",
+      "prefix": "",
+      "allowed_tools": [],
+      "read_only_search": true
+    },
+    "graphify": {
+      "transport": "stdio",
+      "command": ".nova/tools/graphify/bin/python",
+      "args": [
+        "-m",
+        "graphify.serve",
+        "--graph",
+        "{root}/.nova/graph/graphify-out/graph.json"
+      ],
+      "allowed_tools": [
+        "query_graph",
+        "get_node",
+        "get_neighbors",
+        "graph_stats",
+        "shortest_path",
+        "god_nodes"
+      ]
+    }
+  }
+}

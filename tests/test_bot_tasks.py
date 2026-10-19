@@ -136,7 +136,16 @@ class BotTaskTests(unittest.TestCase):
         self.run_bot()
         self.post.assert_not_called()
         self.assertIn('review', '\n'.join(self.replies))
-        self.assertIn('غير مربوطة', '\n'.join(self.replies))
+        self.assertIn('لم يُسجل استدعاء ناجح', '\n'.join(self.replies))
+
+    def test_tool_result_reaches_next_model_request_only_for_owner(self):
+        self.messages = [self.message(1, '/tool ruflo list', owner=7),
+                         self.message(2, '/tool ruflo list'), self.message(3, 'explain result')]
+        with patch.object(bot, 'invoke_tool', return_value='VERIFIED TOOL RESULT') as invoke:
+            self.run_bot()
+        self.assertEqual(invoke.call_count, 1)
+        self.assertEqual(self.post.call_count, 1)
+        self.assertIn('VERIFIED TOOL RESULT', str(self.post.call_args.kwargs['json']))
 
     def test_read_then_multi_file_response_commits_one_batch(self):
         def git(*args):
