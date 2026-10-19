@@ -75,10 +75,11 @@ class AgentCoreManager:
         return context, evidence
 
     def init_ruflo_workflow(self, workflow_name='main_pipeline'):
-        raise TaskError('Ruflo غير مربوط بعد؛ وجود المجلد لا يعني تشغيله.')
+        raise TaskError('استخدم جسر MCP؛ لا توجد واجهة قديمة تنشئ workflow تلقائيًا.')
 
     def status(self):
+        from nova_tools import status
         count = len(self.load_agent_skills())
         return (f'Agent Skills: جسر قراءة متصل؛ {count} مهارة قابلة للتحميل.\n'
                 'المهارة إرشادات للنموذج؛ ليست تنفيذ أدوات أو اختبارات.\n'
-                'Ruflo / Context7 / Graphify / MCP / Strix: غير مربوطة بعد.')
+                + status(self.root))
