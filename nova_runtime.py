@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tempfile
+import hashlib
 
 
 class TaskError(Exception):
@@ -110,7 +111,7 @@ class Workspace:
                 result.append(f'FILE: {name}\n{content}')
         return '\n\n'.join(result)
 
-    def save(self, name, content):
+    def save(self, name, content, task=None):
         path = safe_path(self.root, name)
         if git(self.root, 'rev-parse', '--show-toplevel') != str(self.root):
             raise TaskError('مجلد العمل ليس جذر المستودع.')
@@ -125,18 +126,88 @@ class Workspace:
             git(self.root, 'switch', '-c', 'nova/work')
         elif branch != 'nova/work':
             raise TaskError('التعديل متاح على main لإنشاء فرع، أو على nova/work فقط.')
+        if task:
+            task.mark('prepared', files=[name], base_commit=git(self.root, 'rev-parse', 'HEAD'),
+                      before_hash=hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None,
+                      content_hash=hashlib.sha256(content.encode('utf-8')).hexdigest(),
+                      validation='فحص المسار وصيغة SAVE؛ JSON عند انطباقه')
         atomic_write(path, content)
+        if task:
+            task.mark('saved')
         git(self.root, 'add', '--', name)
         if not git(self.root, 'diff', '--cached', '--name-only'):
+            if task:
+                task.mark('unchanged', status='completed')
             return 'لا يوجد تغيير جديد؛ لم أنشئ Commit أو أؤكد رفعًا جديدًا.'
-        git(self.root, 'commit', '-m', f'NOVA: update {name}')
+        message = f'NOVA: update {name}'
+        if task:
+            message += f'\n\nNOVA-Task: {task.id}'
+        git(self.root, 'commit', '-m', message)
         sha = git(self.root, 'rev-parse', 'HEAD')
+        if task:
+            task.mark('committed', commit=sha)
         try:
             git(self.root, 'push', 'origin', 'HEAD:refs/heads/nova/work')
         except TaskError:
             raise TaskError(f'حُفظ التعديل محليًا: {sha}\nفشل الرفع. استخدم /sync لإعادته.') from None
+        if task:
+            task.mark('pushed', status='completed')
         return (f'تم حفظ ورفع {name}\nالفرع: nova/work\nCommit: {sha}\n'
                 'لم يُدمج في main. لم تُشغّل اختبارات اللعبة تلقائيًا.')
+
+    def resume(self, task):
+        """Reconcile actual files/Git; never call the model or rewrite saved content."""
+        row = task.store.get(task.id)
+        if row['status'] in ('completed', 'cancelled'):
+            return task.store.summary(task.id)
+        data = row['details']
+        if not data.get('files'):
+            task.store.update(task.id, status='failed', error='انقطع الطلب قبل حفظ ملف؛ أعد إرسال الطلب إن لزم.')
+            return task.store.summary(task.id)
+        if git(self.root, 'branch', '--show-current') != 'nova/work':
+            raise TaskError('الاستئناف يحتاج فرع nova/work؛ لم أغيّر الفرع أو الملفات.')
+        name = data['files'][0]
+        path = safe_path(self.root, name)
+        # The unique trailer closes the crash window between commit and ledger update.
+        found = git(self.root, 'log', '--format=%H', '--fixed-strings',
+                    '--grep=NOVA-Task: ' + task.id).splitlines()
+        if len(found) > 1:
+            raise TaskError('أكثر من Commit يحمل رقم المهمة؛ تحتاج مراجعة.')
+        sha = found[0] if found else data.get('commit')
+        if sha:
+            # Ensure the recorded commit belongs to the current work history.
+            git(self.root, 'merge-base', '--is-ancestor', sha, 'HEAD')
+            task.mark('committed', commit=sha)
+            self.sync()
+            task.mark('pushed', status='completed')
+            return task.store.summary(task.id)
+        if git(self.root, 'rev-parse', 'HEAD') != data['base_commit']:
+            raise TaskError('تغير تاريخ الفرع منذ المهمة؛ نحتاج مراجعة قبل الاستئناف.')
+        current_hash = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+        staged = git(self.root, 'diff', '--cached', '--name-only').splitlines()
+        if any(item != name for item in staged):
+            raise TaskError('توجد ملفات مجهزة لمهمة أخرى؛ لم أغيّرها.')
+        if current_hash == data.get('before_hash') and current_hash != data['content_hash']:
+            if staged:
+                raise TaskError('الملف الأصلي موجود مع تغييرات في staging؛ تحتاج مراجعة.')
+            task.store.update(task.id, status='failed', error='لم يبقَ تغيير محفوظ لهذه المهمة؛ أعد إرسالها إن لزم.')
+            return task.store.summary(task.id)
+        if current_hash != data['content_hash']:
+            raise TaskError('محتوى الملف تغير بعد الانقطاع؛ لم أستبدل تعديلك.')
+        if staged:
+            index_hash = git(self.root, 'rev-parse', ':' + name)
+            work_hash = git(self.root, 'hash-object', '--', name)
+            if index_hash != work_hash:
+                raise TaskError('نسخة staging تختلف عن الملف؛ تحتاج مراجعة.')
+        git(self.root, 'add', '--', name)
+        if not git(self.root, 'diff', '--cached', '--name-only'):
+            task.mark('unchanged', status='completed')
+            return task.store.summary(task.id)
+        git(self.root, 'commit', '-m', f'NOVA: update {name}\n\nNOVA-Task: {task.id}')
+        task.mark('committed', commit=git(self.root, 'rev-parse', 'HEAD'))
+        self.sync()
+        task.mark('pushed', status='completed')
+        return task.store.summary(task.id)
 
     def sync(self):
         if git(self.root, 'branch', '--show-current') != 'nova/work':
