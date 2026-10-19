@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import subprocess
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -86,3 +87,36 @@ class BotTaskTests(unittest.TestCase):
         self.assertEqual(store.recent()[0]['status'], 'failed')
         self.assertNotIn('PRIVATE ERROR', '\n'.join(self.replies))
         self.assertIn('429', '\n'.join(self.replies))
+
+    def test_read_then_multi_file_response_commits_one_batch(self):
+        def git(*args):
+            return subprocess.run(['git', *args], cwd=self.root, check=True,
+                                  text=True, capture_output=True).stdout.strip()
+        remote = Path(self.temp.name) / 'remote.git'
+        git('init', '--bare', str(remote))
+        git('init', '-b', 'main')
+        git('config', 'user.name', 'NOVA Test')
+        git('config', 'user.email', 'test@example.invalid')
+        (self.root / 'game_engine').mkdir()
+        (self.root / 'game_engine/index.html').write_text('<html></html>')
+        git('add', 'game_engine/index.html')
+        git('commit', '-m', 'initial')
+        git('remote', 'add', 'origin', str(remote))
+        payload = {'files': [
+            {'path': 'game_engine/index.html', 'content': '<script src="app.js"></script>'},
+            {'path': 'game_engine/app.js', 'content': 'const answer = 42;'}]}
+        answer = '[FILES]\n```json\n' + json.dumps(payload) + '\n```'
+        self.post.return_value = SimpleNamespace(status_code=200, json=lambda: {
+            'candidates': [{'finishReason': 'STOP', 'content': {'parts': [{'text': answer}]}}]})
+        self.messages = [self.message(1, '/read game_engine/app.js'), self.message(2, 'apply both files')]
+        # Preserve PATH so the real static checker can locate Node.
+        with patch.dict(os.environ, {'TELEGRAM_BOT_TOKEN': 'test', 'GEMINI_API_KEY': 'test',
+                                    'TELEGRAM_OWNER_ID': '42'}), \
+                patch.dict('sys.modules', self.modules), \
+                patch.object(bot, '__file__', str(self.root / 'bot.py')):
+            bot.main()
+        self.assertEqual(git('rev-list', '--count', 'HEAD'), '2')
+        self.assertEqual((self.root / 'game_engine/app.js').read_text(), 'const answer = 42;')
+        store = TaskStore(self.root / '.nova/tasks.sqlite3')
+        self.addCleanup(store.close)
+        self.assertEqual(store.recent()[0]['status'], 'completed')
