@@ -79,3 +79,19 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
 2026-10-18 20:23:25,373 - NOVA-Bot - WARNING - TELEGRAM_BOT_TOKEN is not set in environment variables.
 2026-10-18 20:23:25,373 - NOVA-Bot - WARNING - GEMINI_API_KEY is not set in environment variables.
 Error: TELEGRAM_BOT_TOKEN is required to run the bot.
+2026-10-19 06:40:45,426 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:40:51,899 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:40:58,604 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:41:05,807 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:41:14,031 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:41:21,235 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:41:32,486 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:42:00,237 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:42:35,488 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:43:38,695 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:44:45,146 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"
+2026-10-19 06:45:47,288 (__init__.py:1301 MainThread) ERROR - TeleBot: "Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 401. Description: Unauthorized"
+  File "/workspaces/NOVA-DRAGON/bot.py", line 25
+    code_match = re.search(r'
+                           ^
+SyntaxError: unterminated string literal (detected at line 25)

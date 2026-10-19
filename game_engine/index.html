@@ -3,87 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js - Cube & Floor</title>
+    <title>محرك اللعبة - NOVA Engine</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #1a1a1a;
+            background-color: #050505;
         }
         canvas {
             display: block;
-            width: 100vw;
-            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ffffff;
+            font-family: sans-serif;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 12px;
+            border-radius: 4px;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
+    <div id="info">استخدم أسهم لوحة المفاتيح للتحكم في المكعب</div>
+
+    <!-- استدعاء مكتبة Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // 1. إعداد المشهد، الكاميرا، والمُصيّر (Scene, Camera, Renderer)
+        // إعداد المشهد والكاميرا والمصيّر
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x202025);
-
-        const camera = new THREE.PerspectiveCamera(
-            60,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            1000
-        );
-        camera.position.set(0, 5, 10);
-        camera.lookAt(0, 0, 0);
-
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // 2. الإضاءة (Lights)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(5, 10, 7);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
-        scene.add(dirLight);
-
-        // 3. الأرضية (Floor)
-        const floorGeo = new THREE.PlaneGeometry(20, 20);
-        const floorMat = new THREE.MeshStandardMaterial({ 
-            color: 0x333338, 
-            roughness: 0.8 
-        });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        // شبكة مساعدة للأرضية (Grid Helper)
-        const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x222222);
-        gridHelper.position.y = 0.01;
-        scene.add(gridHelper);
-
-        // 4. المكعب (Cube)
-        const cubeGeo = new THREE.BoxGeometry(2, 2, 2);
-        const cubeMat = new THREE.MeshStandardMaterial({ 
-            color: 0x00adb5, 
-            roughness: 0.4,
-            metalness: 0.1
-        });
-        const cube = new THREE.Mesh(cubeGeo, cubeMat);
-        cube.position.y = 1; // وضعه فوق الأرضية
-        cube.castShadow = true;
-        cube.receiveShadow = true;
+        // إنشاء المكعب
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshStandardMaterial({ color: 0x00ff88, roughness: 0.4 });
+        const cube = new THREE.Mesh(geometry, material);
         scene.add(cube);
 
-        // 5. حلقة التحديث والرسم (Render Loop)
+        // إضاءة المشهد
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 1);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        camera.position.z = 5;
+
+        // تتبع حالة مفاتيح الأسهم
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key in keys) {
+                keys[event.key] = true;
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            if (event.key in keys) {
+                keys[event.key] = false;
+            }
+        });
+
+        // ضبط الحجم عند تغيير أبعاد النافذة
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const moveSpeed = 0.08;
+
+        // حلقة التحديث والرسم الرئيسية
         function animate() {
             requestAnimationFrame(animate);
 
-            // تدوير المكعب
+            // تحريك المكعب في الاتجاهات الأربعة استناداً لحالة المفاتيح
+            if (keys.ArrowUp) {
+                cube.position.y += moveSpeed;
+            }
+            if (keys.ArrowDown) {
+                cube.position.y -= moveSpeed;
+            }
+            if (keys.ArrowLeft) {
+                cube.position.x -= moveSpeed;
+            }
+            if (keys.ArrowRight) {
+                cube.position.x += moveSpeed;
+            }
+
+            // تدوير خفيف لإبراز الأبعاد الثلاثية
             cube.rotation.x += 0.01;
             cube.rotation.y += 0.01;
 
@@ -91,13 +111,6 @@
         }
 
         animate();
-
-        // 6. استجابة تغيير حجم النافذة (Resize Handling)
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>

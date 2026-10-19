@@ -2,9 +2,12 @@ import telebot
 import requests
 import os
 import re
+from dotenv import load_dotenv
 
-TELEGRAM_TOKEN = "8687704033:AAESPYO4oXlBxq0us2XUrVILHFGwE-05A7g"
-GEMINI_API_KEY = "AQ.Ab8RN6LggEHvKGpf6E_A7o9ETrhoUM5pOiu-YmifPLaQ49CYPA"
+load_dotenv()
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 WORKING_MODEL = "models/gemini-3.8-flash"
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
@@ -52,12 +55,17 @@ def handle_message(message):
         try:
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
             with open(full_path, "w", encoding="utf-8") as f: f.write(content)
-            bot.reply_to(message, f"✅ تم الحفظ في:\n`{file_path}`", parse_mode="Markdown")
+            
+            # ميزة المزامنة التلقائية مع جيت هاب
+            os.system(f'git add . && git commit -m "🤖 تحديث تلقائي من NOVA Agent: تم تعديل {file_path}" && git push origin main')
+            
+            bot.reply_to(message, f"✅ تم الحفظ والمزامنة بنجاح في:\n`{file_path}`", parse_mode="Markdown")
             return
         except Exception as e:
-            bot.reply_to(message, f"❌ خطأ: {e}")
+            bot.reply_to(message, f"❌ خطأ في الحفظ: {e}")
             return
+            
     bot.reply_to(message, answer)
 
-print("✅ NOVA Agent is ONLINE!")
+print("✅ NOVA Agent is ONLINE with Auto-Sync!")
 bot.infinity_polling()
