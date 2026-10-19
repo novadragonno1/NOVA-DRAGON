@@ -98,7 +98,7 @@ def git(root, *args):
     if result.returncode:
         # Never expose raw stderr: remote URLs may contain credentials.
         raise TaskError('فشلت عملية Git (%s). لم يتم تأكيد المزامنة.' % args[0])
-    return result.stdout.strip()
+    return result.stdout.rstrip('\n')
 
 
 class Workspace:

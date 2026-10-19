@@ -42,6 +42,8 @@ def main():
 
     state_dir = root / '.nova'
     state_dir.mkdir(mode=0o700, exist_ok=True)
+    if (state_dir / 'restore-in-progress').exists():
+        raise SystemExit('State restore is incomplete; finish restore before starting NOVA.')
     lock = (state_dir / 'bot.lock').open('w')
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
