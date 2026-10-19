@@ -23,7 +23,8 @@ class TransferTests(unittest.TestCase):
         state = self.root / '.nova'
         state.mkdir()
         self.history = {'history': [{'role': 'user', 'parts': [{'text': 'أكمل العمل'}]}],
-                        'last_message_id': 10, 'selected': ['game_engine/app.js']}
+                        'last_message_id': 10, 'selected': ['game_engine/app.js'],
+                        'skills': ['planning-and-task-breakdown']}
         (state / 'history.json').write_text(json.dumps(self.history))
         self.store = TaskStore(state / 'tasks.sqlite3')
         self.addCleanup(self.store.close)

@@ -58,6 +58,10 @@ def validate_history(root, history):
         raise TaskError('Invalid Telegram message checkpoint.')
     if len(history['history']) > 100:
         raise TaskError('History exceeds transport limits.')
+    skills = history.get('skills', [])
+    if (not isinstance(skills, list) or len(skills) > 2 or
+            any(not isinstance(name, str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', name) for name in skills)):
+        raise TaskError('Invalid selected skills.')
     for item in history['history']:
         if not isinstance(item, dict) or item.get('role') not in ('user', 'model'):
             raise TaskError('Invalid history role.')

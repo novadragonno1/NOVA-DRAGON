@@ -88,6 +88,56 @@ class BotTaskTests(unittest.TestCase):
         self.assertNotIn('PRIVATE ERROR', '\n'.join(self.replies))
         self.assertIn('429', '\n'.join(self.replies))
 
+    def skill_file(self):
+        path = self.root / 'ai_tools/agent-skills/skills/review/SKILL.md'
+        path.parent.mkdir(parents=True)
+        path.write_text('UNIQUE REVIEW GUIDANCE')
+        return path
+
+    def test_skill_selection_persists_and_reaches_model_with_task_evidence(self):
+        self.skill_file()
+        self.messages = [self.message(1, '/skill review')]
+        self.run_bot()
+        self.post.assert_not_called()
+        self.messages = [self.message(2, 'review current files')]
+        self.run_bot()
+        system = self.post.call_args.kwargs['json']['system_instruction']['parts'][0]['text']
+        self.assertIn('UNIQUE REVIEW GUIDANCE', system)
+        store = TaskStore(self.root / '.nova/tasks.sqlite3')
+        self.addCleanup(store.close)
+        evidence = store.recent()[0]['details']['skills']
+        self.assertEqual(evidence[0]['name'], 'review')
+        self.assertEqual(len(evidence[0]['sha256']), 64)
+
+    def test_missing_active_skill_blocks_model_and_records_failure(self):
+        path = self.skill_file()
+        self.messages = [self.message(1, '/skill review')]
+        self.run_bot()
+        path.unlink()
+        self.messages = [self.message(2, 'review')]
+        self.run_bot()
+        self.post.assert_not_called()
+        store = TaskStore(self.root / '.nova/tasks.sqlite3')
+        self.addCleanup(store.close)
+        self.assertEqual(store.recent()[0]['status'], 'failed')
+
+    def test_reset_clears_skills_and_unauthorized_selection_is_ignored(self):
+        self.skill_file()
+        self.messages = [self.message(1, '/skill review', owner=7), self.message(2, 'hello'),
+                         self.message(3, '/skill review'), self.message(4, '/reset'), self.message(5, 'hello')]
+        self.run_bot()
+        self.assertEqual(self.post.call_count, 2)
+        for call in self.post.call_args_list:
+            self.assertNotIn('UNIQUE REVIEW GUIDANCE', str(call.kwargs['json']))
+
+    def test_tools_and_catalog_do_not_call_model(self):
+        self.skill_file()
+        self.messages = [self.message(1, '/tools'), self.message(2, '/skills')]
+        self.run_bot()
+        self.post.assert_not_called()
+        self.assertIn('review', '\n'.join(self.replies))
+        self.assertIn('غير مربوطة', '\n'.join(self.replies))
+
     def test_read_then_multi_file_response_commits_one_batch(self):
         def git(*args):
             return subprocess.run(['git', *args], cwd=self.root, check=True,
