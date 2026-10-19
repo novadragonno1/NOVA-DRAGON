@@ -87,6 +87,7 @@ class TaskStore:
         return (f"المهمة: {row['id']}\nالحالة: {row['status']} / {row['phase']}\n"
                 f"الطلب: {row['summary']}\nالملفات: {', '.join(d.get('files', [])) or 'لا يوجد'}\n"
                 f"Commit: {d.get('commit', 'لم يُسجّل')}\n"
+                f"المهارات: {', '.join(s['name'] for s in d.get('skills', []) if isinstance(s, dict) and isinstance(s.get('name'), str)) or 'لا يوجد'}\n"
                 f"التحقق: {d.get('validation', 'لم يبدأ')}\n"
                 f"الاختبارات التنفيذية: لم تُشغّل\n{row['error']}")
 
