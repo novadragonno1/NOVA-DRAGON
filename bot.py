@@ -1,50 +1,63 @@
 import telebot
 import requests
+import os
+import re
 
 TELEGRAM_TOKEN = "8687704033:AAESPYO4oXlBxq0us2XUrVILHFGwE-05A7g"
 GEMINI_API_KEY = "AQ.Ab8RN6LggEHvKGpf6E_A7o9ETrhoUM5pOiu-YmifPLaQ49CYPA"
 WORKING_MODEL = "models/gemini-3.8-flash"
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
+WORKSPACE_DIR = "/workspaces/NOVA-DRAGON"
+RESUME_FILE = os.path.join(WORKSPACE_DIR, "RESUME.md")
+
+chat_history = []
+AGENT_PERSONA = """أنت مهندس ألعاب مستقل (NOVA AI Agent).
+قاعدة صارمة: عندما يطلب منك المستخدم برمجة جزء من اللعبة، يجب أن تنشئ/تحدث الملف.
+ابدأ رسالتك بـ: [SAVE: مسار/اسم_الملف.الامتداد] ثم ضع الكود داخل مربع."""
 
 def ask_gemini(prompt):
-    print(f"-> جاري إرسال الطلب إلى جوجل...")
-    url = f"https://generativelanguage.googleapis.com/v1beta/{WORKING_MODEL}:generateContent?key={GEMINI_API_KEY}"
-    headers = {'Content-Type': 'application/json'}
-    data = {"contents": [{"parts": [{"text": prompt}]}]}
-    try:
-        # إضافة مهلة 15 ثانية لمنع تجمّد البوت
-        response = requests.post(url, headers=headers, json=data, timeout=15)
-        print(f"<- استلمنا رد من جوجل. الرمز: {response.status_code}")
+    global chat_history
+    memory = ""
+    if os.path.exists(RESUME_FILE):
+        with open(RESUME_FILE, "r", encoding="utf-8") as f: memory = f.read()
         
-        if response.status_code == 200:
-            return response.json()['candidates'][0]['content']['parts'][0]['text']
-        else:
-            print(f"! خطأ جوجل: {response.text}")
-            return f"خطأ من جوجل: السيرفر رفض الطلب. راجع الطرفية."
-            
-    except requests.exceptions.Timeout:
-        print("! انتهى وقت الاتصال (Timeout)")
-        return "عذراً، سيرفر جوجل لم يرد خلال 15 ثانية (Timeout)."
-    except Exception as e:
-        print(f"! فشل الاتصال: {e}")
-        return f"فشل الاتصال بالإنترنت: {e}"
+    chat_history.append({"role": "user", "parts": [{"text": prompt}]})
+    if len(chat_history) > 20: chat_history = chat_history[-20:]
 
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, "تم إعادة التشغيل بنظام التتبع والمهلة الزمنية! أنا جاهز.")
-
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    print(f"\n--- رسالة جديدة مستلمة من تيليجرام: {message.text} ---")
+    url = f"https://generativelanguage.googleapis.com/v1beta/{WORKING_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    data = {"system_instruction": {"parts": [{"text": AGENT_PERSONA + f"\nالذاكرة: {memory}"}]}, "contents": chat_history}
+    
     try:
-        bot.send_chat_action(message.chat.id, 'typing')
-        answer = ask_gemini(message.text)
-        bot.reply_to(message, answer)
-        print("--- تم إرسال الرد بنجاح إلى تيليجرام ---")
+        res = requests.post(url, headers={'Content-Type': 'application/json'}, json=data, timeout=60)
+        if res.status_code == 200:
+            answer = res.json()['candidates'][0]['content']['parts'][0]['text']
+            chat_history.append({"role": "model", "parts": [{"text": answer}]})
+            return answer
+        return f"خطأ: {res.text}"
     except Exception as e:
-        print(f"! خطأ داخلي في البوت: {e}")
-        bot.reply_to(message, "حدث خطأ داخلي، راجع الطرفية.")
+        return str(e)
 
-print(f"Game Agent is running with {WORKING_MODEL} and Tracking System...")
+@bot.message_handler(func=lambda m: True)
+def handle_message(message):
+    bot.send_chat_action(message.chat.id, 'typing')
+    answer = ask_gemini(message.text)
+    
+    save_match = re.search(r'\[SAVE:\s*(.+?)\]', answer)
+    if save_match:
+        file_path = save_match.group(1).strip()
+        code_match = re.search(r'```[a-zA-Z]*\n(.*?)```', answer, re.DOTALL)
+        content = code_match.group(1).strip() if code_match else answer.replace(save_match.group(0), "").strip()
+        full_path = os.path.join(WORKSPACE_DIR, file_path)
+        try:
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            with open(full_path, "w", encoding="utf-8") as f: f.write(content)
+            bot.reply_to(message, f"✅ تم الحفظ في:\n`{file_path}`", parse_mode="Markdown")
+            return
+        except Exception as e:
+            bot.reply_to(message, f"❌ خطأ: {e}")
+            return
+    bot.reply_to(message, answer)
+
+print("✅ NOVA Agent is ONLINE!")
 bot.infinity_polling()
